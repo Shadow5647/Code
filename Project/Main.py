@@ -1,5 +1,4 @@
 import datetime as dt  # Time
-from matplotlib.dates import DateFormatter
 import meteomatics.api as api
 import requests  # Request API
 import http.client  # HTTP status
@@ -13,24 +12,26 @@ coordinates = []
 lat = lon = 0.0
 Diff = days = hours = 0
 temp = ''
-response = None  # Initialize the response as None
+response = None
 
 #-----------------------------------------------------------------------------------------------------
 
 # Input time and return difference to UTC
 def Get_Time(timezone_name):
+
     tz = pytz.timezone(timezone_name)
     utc = pytz.utc
-    now = utc.localize(dt.datetime.utcnow())
-    local_time = now.astimezone(tz)
-    offset = local_time.utcoffset().total_seconds() / 3600
-    return offset
+    now = utc.localize(dt.datetime.utcnow()) # Get UTC time
+    local_time = now.astimezone(tz) # Get local time
+    offset = local_time.utcoffset().total_seconds() / 3600 # Calculate
+
+    return offset # Return the hours difference to UTC
 
 # Plot a graph
 def Plot_Graph():
 
     df = pd.DataFrame(response)
-    df.to_csv('Test.csv', index = 'datetime')
+    #df.to_csv('Test.csv', index = 'datetime')
 
     # Create a line chart and show
     df.plot(kind='line', title='Graph', grid=True)
@@ -98,7 +99,8 @@ def On_retrieve_button_click():
     # Retrieve and store the values when the button is clicked
 
     coordinates, lat, lon, Diff, days, hours, temp = Get_Info()
-    Get_API(coordinates, lat, lon, Diff, days, hours, temp)  # Call the API request function
+    Get_API(coordinates, lat, lon, Diff, days, hours, temp)
+
     result_label.config(text="Weather data retrieved!")
 
 # Print the data
@@ -128,36 +130,36 @@ def Print_Data():
 
 # Create the main GUI window
 root = tk.Tk()
-root.title("Weather Forecasting")
-root.geometry(f"400x400")
+root.title("Weather Forecasting") # Title
+root.geometry(f"500x500") # Size
 
 # Create and place input labels and entry fields
-latitude_label = tk.Label(root, text="Latitude:")
+latitude_label = tk.Label(root, text="Latitude :")
 latitude_label.pack()
 latitude_entry = tk.Entry(root)
 latitude_entry.pack()
 
-longitude_label = tk.Label(root, text="Longitude:")
+longitude_label = tk.Label(root, text="Longitude :")
 longitude_label.pack()
 longitude_entry = tk.Entry(root)
 longitude_entry.pack()
 
-timezone_label = tk.Label(root, text="Timezone (e.g., America/New_York):")
+timezone_label = tk.Label(root, text="Timezone (America/New_York) :")
 timezone_label.pack()
 timezone_entry = tk.Entry(root)
 timezone_entry.pack()
 
-days_label = tk.Label(root, text="Number of Days (1-8):")
+days_label = tk.Label(root, text="Number of Days (1-8) :")
 days_label.pack()
 days_entry = tk.Entry(root)
 days_entry.pack()
 
-timestep_label = tk.Label(root, text="Timestep (1-24 hours):")
+timestep_label = tk.Label(root, text="Timestep (1-24 hours) :")
 timestep_label.pack()
 timestep_entry = tk.Entry(root)
 timestep_entry.pack()
 
-temp_label = tk.Label(root, text="Temperature Unit (C/F/K):")
+temp_label = tk.Label(root, text="Temperature Unit (C/F/K) :")
 temp_label.pack()
 temp_entry = tk.Entry(root)
 temp_entry.pack()
@@ -170,6 +172,7 @@ retrieve_button.pack()
 print_button = tk.Button(root, text="Print Data", command=Print_Data)
 print_button.pack()
 
+# Create a button to plot graph
 plot_button = tk.Button(root, text="Plot graph", command=Plot_Graph)
 plot_button.pack()
 
@@ -179,3 +182,6 @@ result_label.pack()
 
 # Start the GUI application
 root.mainloop()
+
+
+
