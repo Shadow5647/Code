@@ -2,19 +2,15 @@ import datetime as dt  # Time
 import meteomatics.api as api
 import requests  # Request API
 import http.client  # HTTP status
-import pandas as pd  # Graph
+import pandas as pd  # CSV
+import markdown # Table
 import matplotlib.pyplot as plt  # Graph
 import pytz  # Time zone
-import tkinter as tk
+import tkinter as tk # GUI
 
 # Define the global variables
 coordinates = []
-lat = lon = 0.0
-Diff = days = hours = 0
-temp = ''
-response = None
-
-#-----------------------------------------------------------------------------------------------------
+lat = lon = Diff = days = hours = temp = response = None
 
 # Input time and return difference to UTC
 def Get_Time(timezone_name):
@@ -26,21 +22,6 @@ def Get_Time(timezone_name):
     offset = local_time.utcoffset().total_seconds() / 3600 # Calculate
 
     return offset # Return the hours difference to UTC
-
-# Plot a graph
-def Plot_Graph():
-
-    df = pd.DataFrame(response)
-    #df.to_csv('Test.csv', index = 'datetime')
-
-    # Create a line chart and show
-    df.plot(kind='line', title='Graph', grid=True)
-
-    # Set the tick positions based on the first column in your DataFrame
-    plt.xticks(rotation=45)
-    plt.xlabel('Time')
-    plt.ylabel('Unit')
-    plt.show()
 
 # Get data from user
 def Get_Info():
@@ -57,76 +38,125 @@ def Get_Info():
 
 # Request API
 def Get_API(coordinates, lat, lon, Diff, days, hours, temp):
-    global response  # Use the global response variable
-    # Meteomatics ID
-    username = '-_tiewcharernsopha_jirapas'
-    password = 'Hn1Ief6G8d'
+    try:
+        global response  # Use the global response variable
+        # Meteomatics ID
+        username = '-_tiewcharernsopha_jirapas'
+        password = 'Hn1Ief6G8d'
 
-    parameters = [f't_2m:{temp}', 'precip_1h:mm', 'wind_speed_10m:ms', 'uv:idx']
-    model = 'mix'
+        parameters = [f't_2m:{temp}', 'precip_1h:mm', 'wind_speed_10m:ms', 'uv:idx']
+        model = 'mix'
 
-    # Time
-    UTC = dt.datetime.utcnow()
-    User_time = UTC + dt.timedelta(hours=Diff)
+        # Time
+        UTC = dt.datetime.utcnow()
+        User_time = UTC + dt.timedelta(hours=Diff)
+        enddate = UTC + dt.timedelta(days)
+        interval = dt.timedelta(hours=hours)
 
-    enddate = User_time + dt.timedelta(days)
-    interval = dt.timedelta(hours=hours)
+        # Clock
+        print(f"\nCurrent date and time in UTC : {UTC}")
+        print(f"Current date and time in your location : {User_time}\n")
 
-    # Clock
-    print(f"\nCurrent date and time in UTC : {UTC}")
-    print(f"Current date and time in your location : {User_time}\n")
+        # Make API request
+        print("Sending API request...")
+        
+        response = api.query_time_series(coordinates, UTC, enddate, interval, parameters, username, password, model=model)
 
-    # Make API request
-    print("Sending API request...")
-    response = api.query_time_series(coordinates, UTC, enddate, interval, parameters, username, password, model=model)
+        def Get_HTTP():
+            # Check HTTP status
+            url = f'https://api.meteomatics.com/{username}/{password}/weather?lat={lat}&lon={lon}&start={User_time.isoformat()}&end={enddate.isoformat()}&interval={interval.total_seconds()}s&model={model}&parameters={",".join(parameters)}'
+
+            HTTP_code = (requests.get(url)).status_code
+            status_message = http.client.responses.get(HTTP_code, 'Unknown Status Code')
+
+            # Printout HTTP code and status
+            print(f'Server status : {HTTP_code} : {status_message}')
+
+        Get_HTTP()
+        print("Received a response. Sending data back...\n")
+    except:
+        print("\nFail to requesting API. Please check internet connection")
     
-    def Get_HTTP():
-        # Check HTTP status
-        url = f'https://api.meteomatics.com/{username}/{password}/weather?lat={lat}&lon={lon}&start={User_time.isoformat()}&end={enddate.isoformat()}&interval={interval.total_seconds()}s&model={model}&parameters={",".join(parameters)}'
-
-        HTTP_code = (requests.get(url)).status_code
-        status_message = http.client.responses.get(HTTP_code, 'Unknown Status Code')
-
-        # Printout HTTP code and status
-        print(f'Server status : {HTTP_code} : {status_message}')
-
-    Get_HTTP()
-    print("Received a response. Sending data back...\n")
-
 # Botton click
 def On_retrieve_button_click():
     global coordinates, lat, lon, Diff, days, hours, temp
-    # Retrieve and store the values when the button is clicked
 
+    # Retrieve and store the values when the button is clicked
+    try:
+        lat = float(latitude_entry.get())
+        lon = float(longitude_entry.get())
+        days = int(days_entry.get())
+        hours = int(timestep_entry.get())
+    except ValueError:
+        result_label.config(text="Invalid input.")
+        return
+
+    # Check the validity of latitude and longitude values
+    if not (-90 <= lat <= 90) or not (-180 <= lon <= 180):
+        result_label.config(text="Invalid latitude or longitude. Please enter values within the valid range.")
+        return
+
+    # Check the validity of days and timestep values
+    if not (1 <= days <= 8) or not (1 <= hours <= 24):
+        result_label.config(text="Invalid number of days or timestep, Please enter values 1-8.")
+        return
+
+    # Check the validity of temperature unit
+    temp = temp_entry.get().upper()  # Convert to uppercase for case-insensitive check
+    if temp not in ('C', 'F', 'K'):
+        result_label.config(text="Invalid temperature unit")
+        return
+
+    # If all inputs are valid, proceed with other inputs
     coordinates, lat, lon, Diff, days, hours, temp = Get_Info()
     Get_API(coordinates, lat, lon, Diff, days, hours, temp)
 
     result_label.config(text="Weather data retrieved!")
 
-# Print the data
+# Print Data
 def Print_Data():
+
     global response
 
-    # Create dataframe ,CSV
-    df = pd.DataFrame(response)
-    df.to_csv('Test.csv', index = 'datetime')
-
-    # Print data
-    if response is not None:
-        # Change header of columns and printout
-        column_mapping = {
-            't_2m': f'Temperature at 2m : {temp}',
-            'precip_1h': 'Precipitation : mm',
-            'wind_speed_10m': 'Wind speed at 10m : m/s',
-            'uv': 'UV Index',
-        }
-        
-        response = response.rename(columns=column_mapping)
-        print(response)
-    else:
+    # Check if data was collected
+    if response is None:
         print("Data not retrieved yet. Click 'Retrieve Weather Data' first.")
+    else:
+        # Change header of columns
+        column_mapping = {
+            f't_2m:{temp}': f'Temperature at 2m : {temp}', 'precip_1h:mm': 'Precipitation : mm',
+            'wind_speed_10m:ms': 'Wind speed at 10m : m/s', 'uv:idx': 'UV Index', }
 
-#-----------------------------------------------------------------------------------------------------
+        # Make data user-friendly
+        response = response.rename(columns=column_mapping)
+        response = response.reset_index()
+        response = response.drop(['lon', 'lat'],axis=1)
+        response['validdate'] = pd.to_datetime(response['validdate']) + pd.Timedelta(hours=int(Diff))
+        response['validdate'] = response['validdate'].astype(str).str[:-6]
+
+        # Print in Terminal
+        print(response)
+
+        # Print in Txt
+        Markdown = response.to_markdown()
+        with open('Report.txt', 'w') as f:
+            f.write(Markdown)
+        
+        # Print in CSV
+        df = pd.DataFrame(response.copy())
+        df.to_csv('Report.csv', index='validdate')
+
+# Plot a graph
+def Plot_Graph():
+
+    df = pd.DataFrame(response)
+    df.plot(kind='line', title='Graph', grid=True)
+
+    plt.xticks(rotation=45)
+    plt.xlabel('Time')
+    plt.ylabel('Unit')
+    plt.show()
+
 
 # Create the main GUI window
 root = tk.Tk()
@@ -164,15 +194,13 @@ temp_label.pack()
 temp_entry = tk.Entry(root)
 temp_entry.pack()
 
-# Create a button to trigger weather data retrieval
+# Create a button
 retrieve_button = tk.Button(root, text="Retrieve Weather Data", command=On_retrieve_button_click)
 retrieve_button.pack()
 
-# Create a button to print data
 print_button = tk.Button(root, text="Print Data", command=Print_Data)
 print_button.pack()
 
-# Create a button to plot graph
 plot_button = tk.Button(root, text="Plot graph", command=Plot_Graph)
 plot_button.pack()
 
@@ -182,6 +210,3 @@ result_label.pack()
 
 # Start the GUI application
 root.mainloop()
-
-
-
